@@ -46,7 +46,9 @@ import {
   ContentCopy as DuplicateIcon,
   Search as SearchIcon,
   Assignment as AssignmentIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  Publish as PublishIcon,
+  ArrowForward as ArrowForwardIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import FormBuilder from '../FormBuilder/FormBuilder';
@@ -377,7 +379,7 @@ const FormTemplateCreate = () => {
   };
   
   // Xử lý khi lưu mẫu hồ sơ
-  const handleSave = () => {
+  const handleSave = (publishImmediately = false) => {
     // Lưu form hiện tại
     setStepForms(prev => ({
       ...prev,
@@ -398,12 +400,15 @@ const FormTemplateCreate = () => {
               type: formTypes.find(t => t.id === templateType)?.name || 'Không xác định',
               steps: steps.length,
               updatedAt: new Date().toISOString().split('T')[0],
+              status: publishImmediately ? 'active' : template.status,
               formData: stepForms
             }
           : template
       );
       setTemplates(updatedTemplates);
-      alert('Đã cập nhật mẫu hồ sơ thành công!');
+      alert(publishImmediately 
+        ? 'Đã cập nhật và xuất bản mẫu hồ sơ thành công!' 
+        : 'Đã cập nhật mẫu hồ sơ thành công!');
     } else {
       // Tạo một mẫu hồ sơ mới
       const newTemplate = {
@@ -412,13 +417,15 @@ const FormTemplateCreate = () => {
         type: formTypes.find(t => t.id === templateType)?.name || 'Không xác định',
         steps: steps.length,
         updatedAt: new Date().toISOString().split('T')[0],
-        status: 'active',
+        status: publishImmediately ? 'active' : 'draft',
         formData: stepForms // Lưu dữ liệu form của tất cả các bước
       };
       
       // Thêm mẫu mới vào danh sách
       setTemplates([...templates, newTemplate]);
-      alert('Đã lưu mẫu hồ sơ mới thành công!');
+      alert(publishImmediately 
+        ? 'Đã lưu và xuất bản mẫu hồ sơ mới thành công!' 
+        : 'Đã lưu mẫu hồ sơ mới thành công!');
     }
     
     // Reset form và quay lại danh sách
@@ -433,6 +440,105 @@ const FormTemplateCreate = () => {
     setShowCreateForm(false);
     setIsEditMode(false);
     setSelectedTemplate(null);
+  };
+  
+  // Hàm xuất bản ngay lập tức
+  const handleSaveAndPublish = () => {
+    handleSave(true);
+  };
+  
+  // Xử lý khi nhấn nút publish
+  const handlePublish = (template = null) => {
+    const targetTemplate = template || selectedTemplate;
+    if (targetTemplate) {
+      // Cập nhật trạng thái thành 'active'
+      const updatedTemplates = templates.map(t => 
+        t.id === targetTemplate.id 
+          ? {
+              ...t,
+              status: 'active',
+              updatedAt: new Date().toISOString().split('T')[0]
+            }
+          : t
+      );
+      
+      // Lưu danh sách đã cập nhật
+      setTemplates(updatedTemplates);
+      
+      // Nếu đang xử lý selectedTemplate, cập nhật nó để phản ánh thay đổi
+      if (selectedTemplate && targetTemplate.id === selectedTemplate.id) {
+        setSelectedTemplate({
+          ...selectedTemplate,
+          status: 'active',
+          updatedAt: new Date().toISOString().split('T')[0]
+        });
+      }
+      
+      alert(`Đã xuất bản mẫu "${targetTemplate.name}" thành công!`);
+      
+      // Nếu đang trong modal xem trước, cập nhật previewTemplate
+      if (previewTemplate && targetTemplate.id === previewTemplate.id) {
+        setPreviewTemplate({
+          ...previewTemplate,
+          status: 'active',
+          updatedAt: new Date().toISOString().split('T')[0]
+        });
+      }
+    }
+    
+    // Chỉ đóng menu nếu không có template truyền vào và menu đang mở
+    if (!template && Boolean(anchorEl)) {
+      handleCloseMenu();
+    }
+
+    return updatedTemplates; // Trả về danh sách đã cập nhật để hàm gọi có thể sử dụng
+  };
+  
+  // Thêm chức năng thu hồi (unpublish)
+  const handleUnpublish = (template = null) => {
+    const targetTemplate = template || selectedTemplate;
+    if (targetTemplate) {
+      // Cập nhật trạng thái thành 'draft'
+      const updatedTemplates = templates.map(t => 
+        t.id === targetTemplate.id 
+          ? {
+              ...t,
+              status: 'draft',
+              updatedAt: new Date().toISOString().split('T')[0]
+            }
+          : t
+      );
+      
+      // Lưu danh sách đã cập nhật
+      setTemplates(updatedTemplates);
+      
+      // Nếu đang xử lý selectedTemplate, cập nhật nó để phản ánh thay đổi
+      if (selectedTemplate && targetTemplate.id === selectedTemplate.id) {
+        setSelectedTemplate({
+          ...selectedTemplate,
+          status: 'draft',
+          updatedAt: new Date().toISOString().split('T')[0]
+        });
+      }
+      
+      alert(`Đã thu hồi mẫu "${targetTemplate.name}" thành công! Giờ đây bạn có thể chỉnh sửa.`);
+      
+      // Nếu đang trong modal xem trước, cập nhật previewTemplate
+      if (previewTemplate && targetTemplate.id === previewTemplate.id) {
+        setPreviewTemplate({
+          ...previewTemplate,
+          status: 'draft',
+          updatedAt: new Date().toISOString().split('T')[0]
+        });
+      }
+    }
+    
+    // Chỉ đóng menu nếu không có template truyền vào và menu đang mở
+    if (!template && Boolean(anchorEl)) {
+      handleCloseMenu();
+    }
+
+    return updatedTemplates; // Trả về danh sách đã cập nhật để hàm gọi có thể sử dụng
   };
   
   // Xử lý khi nhấn nút tạo mới
@@ -453,13 +559,13 @@ const FormTemplateCreate = () => {
   // Xử lý khi mở menu actions
   const handleOpenMenu = (event, template) => {
     setAnchorEl(event.currentTarget);
-    setSelectedTemplate(template);
+    // Tạo bản sao sâu của template để tránh tham chiếu
+    setSelectedTemplate(JSON.parse(JSON.stringify(template)));
   };
   
   // Xử lý khi đóng menu actions
   const handleCloseMenu = () => {
     setAnchorEl(null);
-    setSelectedTemplate(null);
   };
   
   // Xử lý khi nhấn nút chỉnh sửa từ danh sách
@@ -587,10 +693,10 @@ const FormTemplateCreate = () => {
   // Lấy màu cho trạng thái
   const getStatusColor = (status) => {
     switch (status) {
-      case 'active': return { bg: 'success.main', text: 'white' };
-      case 'draft': return { bg: 'warning.main', text: 'white' };
-      case 'inactive': return { bg: 'error.main', text: 'white' };
-      default: return { bg: 'grey.500', text: 'white' };
+      case 'active': return { bg: 'success.main', text: 'white', bgLight: 'success.lighter', icon: <PublishIcon fontSize="small" sx={{ mr: 0.5 }} /> };
+      case 'draft': return { bg: 'warning.main', text: 'white', bgLight: 'warning.lighter', icon: <EditIcon fontSize="small" sx={{ mr: 0.5 }} /> };
+      case 'inactive': return { bg: 'error.main', text: 'white', bgLight: 'error.lighter', icon: <CloseIcon fontSize="small" sx={{ mr: 0.5 }} /> };
+      default: return { bg: 'grey.500', text: 'white', bgLight: 'grey.200', icon: null };
     }
   };
   
@@ -663,6 +769,12 @@ const FormTemplateCreate = () => {
     }
   };
 
+  // Hàm để kiểm tra xem mẫu có ở trạng thái nháp không
+  const isDraftTemplate = (template) => template.status === 'draft';
+  
+  // Hàm để kiểm tra xem mẫu có đang hoạt động không
+  const isActiveTemplate = (template) => template.status === 'active';
+
   // Hiển thị danh sách mẫu hồ sơ nếu không ở chế độ tạo mới
   if (!showCreateForm) {
     return (
@@ -712,69 +824,169 @@ const FormTemplateCreate = () => {
                 display: 'flex', 
                 flexDirection: 'column',
                 borderRadius: 2,
-                transition: 'transform 0.2s, box-shadow 0.2s',
+                transition: 'all 0.3s ease',
+                overflow: 'hidden', 
+                position: 'relative',
+                border: '1px solid',
+                borderColor: template.status === 'draft' ? 'warning.lighter' : 
+                             template.status === 'active' ? 'success.lighter' : 
+                             template.status === 'inactive' ? 'error.lighter' : 'grey.200',
+                '&:before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '4px',
+                  backgroundColor: template.status === 'draft' ? 'warning.main' : 
+                                   template.status === 'active' ? 'success.main' : 
+                                   template.status === 'inactive' ? 'error.main' : 'grey.500',
+                },
                 '&:hover': {
                   transform: 'translateY(-4px)',
                   boxShadow: '0 8px 24px rgba(0,0,0,0.12)'
                 }
               }}>
-                <CardContent sx={{ flexGrow: 1, pb: 1 }}>
+                <CardContent sx={{ flexGrow: 1, pb: 1, pt: 3 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
                     <Chip 
                       label={getStatusLabel(template.status)} 
                       size="small"
+                      icon={getStatusColor(template.status).icon}
                       sx={{ 
-                        bgcolor: getStatusColor(template.status).bg, 
-                        color: getStatusColor(template.status).text,
-                        fontWeight: 500
+                        bgcolor: getStatusColor(template.status).bgLight, 
+                        color: getStatusColor(template.status).bg,
+                        fontWeight: 500,
+                        '& .MuiChip-icon': {
+                          color: getStatusColor(template.status).bg
+                        }
                       }}
                     />
                     <IconButton 
                       size="small" 
                       onClick={(e) => handleOpenMenu(e, template)}
                       aria-label="more"
+                      sx={{
+                        border: '1px solid',
+                        borderColor: 'grey.300',
+                        '&:hover': {
+                          backgroundColor: 'grey.100'
+                        }
+                      }}
                     >
                       <MoreVertIcon fontSize="small" />
                     </IconButton>
                   </Box>
                   
-                  <Typography variant="h6" component="h2" fontWeight="600" sx={{ mb: 1 }}>
+                  <Typography variant="h6" component="h2" fontWeight="600" sx={{ mb: 2, color: 'text.primary' }}>
                     {template.name}
                   </Typography>
                   
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    Loại: {template.type}
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Loại: <Typography component="span" fontWeight="500" color="text.primary">{template.type}</Typography>
                   </Typography>
                   
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <AssignmentIcon fontSize="small" sx={{ color: 'primary.main', mr: 1 }} />
-                    <Typography variant="body2">
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, color: 'primary.main' }}>
+                    <AssignmentIcon fontSize="small" sx={{ mr: 1 }} />
+                    <Typography variant="body2" fontWeight="500">
                       {template.steps} bước
                     </Typography>
                   </Box>
                   
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
                     Cập nhật: {template.updatedAt}
                   </Typography>
                 </CardContent>
                 <Divider />
-                <CardActions>
-                  <Button 
-                    size="small" 
-                    startIcon={<EditIcon fontSize="small" />}
-                    onClick={() => handleEdit(template)}
-                    sx={{ ml: 1 }}
-                  >
-                    Chỉnh sửa
-                  </Button>
-                  <Button 
-                    size="small" 
-                    startIcon={<VisibilityIcon fontSize="small" />}
-                    onClick={() => handleOpenPreview(template)}
-                    sx={{ ml: 1 }}
-                  >
-                    Xem trước
-                  </Button>
+                <CardActions sx={{ justifyContent: 'space-between', px: 2, py: 1.5, bgcolor: 'grey.50' }}>
+                  <Box>
+                    <Button 
+                      size="small" 
+                      variant="text"
+                      startIcon={<EditIcon fontSize="small" />}
+                      onClick={() => handleEdit(template)}
+                      sx={{ 
+                        mr: 1, 
+                        borderRadius: '8px',
+                        color: 'info.main',
+                        '&:hover': {
+                          backgroundColor: 'info.lighter',
+                        }
+                      }}
+                    >
+                      Chỉnh sửa
+                    </Button>
+                    <Button 
+                      size="small" 
+                      variant="text"
+                      startIcon={<VisibilityIcon fontSize="small" />}
+                      onClick={() => handleOpenPreview(template)}
+                      sx={{ 
+                        borderRadius: '8px',
+                        color: 'text.primary',
+                        '&:hover': {
+                          backgroundColor: 'grey.100',
+                        }
+                      }}
+                    >
+                      Xem
+                    </Button>
+                  </Box>
+                  <Box>
+                    {isDraftTemplate(template) ? (
+                      <Tooltip title="Xuất bản mẫu này để người dùng có thể sử dụng">
+                        <Button 
+                          variant="text"
+                          size="small" 
+                          startIcon={<PublishIcon fontSize="small" />}
+                          onClick={() => {
+                            // Clone template để tránh tham chiếu đến đối tượng ban đầu
+                            const templateToPublish = JSON.parse(JSON.stringify(template));
+                            handlePublish(templateToPublish);
+                            // Buộc render lại danh sách
+                            setTemplates([...templates]);
+                          }}
+                          color="primary"
+                          sx={{ 
+                            borderRadius: '8px',
+                            px: 2,
+                            fontWeight: 500,
+                            '&:hover': {
+                              backgroundColor: 'primary.lighter',
+                            }
+                          }}
+                        >
+                          Xuất bản
+                        </Button>
+                      </Tooltip>
+                    ) : isActiveTemplate(template) && (
+                      <Tooltip title="Thu hồi mẫu này để chỉnh sửa">
+                        <Button 
+                          variant="text"
+                          size="small" 
+                          startIcon={<ArrowBackIcon fontSize="small" />}
+                          onClick={() => {
+                            // Clone template để tránh tham chiếu đến đối tượng ban đầu
+                            const templateToUnpublish = JSON.parse(JSON.stringify(template));
+                            handleUnpublish(templateToUnpublish);
+                            // Buộc render lại danh sách
+                            setTemplates([...templates]);
+                          }}
+                          color="warning"
+                          sx={{ 
+                            borderRadius: '8px',
+                            px: 2,
+                            fontWeight: 500,
+                            '&:hover': {
+                              backgroundColor: 'warning.lighter',
+                            }
+                          }}
+                        >
+                          Thu hồi
+                        </Button>
+                      </Tooltip>
+                    )}
+                  </Box>
                 </CardActions>
               </Card>
             </Grid>
@@ -787,37 +999,130 @@ const FormTemplateCreate = () => {
           open={Boolean(anchorEl)}
           onClose={handleCloseMenu}
           PaperProps={{
-            elevation: 0,
+            elevation: 3,
             sx: {
-              filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.1))',
-              width: 200,
+              filter: 'drop-shadow(0px 4px 15px rgba(0,0,0,0.15))',
+              width: 215,
+              overflow: 'visible',
+              mt: 1.5,
+              borderRadius: '12px',
+              '&:before': {
+                content: '""',
+                display: 'block',
+                position: 'absolute',
+                top: 0,
+                right: 14,
+                width: 10,
+                height: 10,
+                bgcolor: 'background.paper',
+                transform: 'translateY(-50%) rotate(45deg)',
+                zIndex: 0,
+              },
+              '& .MuiMenuItem-root': {
+                padding: '10px 16px',
+                borderRadius: '8px',
+                margin: '4px 8px',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                },
+                '& .MuiListItemIcon-root': {
+                  minWidth: '36px',
+                }
+              },
+              '& .MuiDivider-root': {
+                margin: '8px',
+              }
             },
           }}
+          transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+          anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
         >
-          <MenuItem onClick={() => handleEdit()}>
+          <Box sx={{ px: 2, py: 1 }}>
+            <Typography variant="subtitle2" sx={{ fontSize: '13px', color: 'text.secondary', mb: 0.5 }}>
+              Tùy chọn
+            </Typography>
+          </Box>
+          <MenuItem onClick={() => handleEdit(selectedTemplate)}>
             <ListItemIcon>
-              <EditIcon fontSize="small" />
+              <EditIcon fontSize="small" color="info" />
             </ListItemIcon>
             Chỉnh sửa
           </MenuItem>
-          <MenuItem onClick={() => handleOpenPreview()}>
+          <MenuItem onClick={() => handleOpenPreview(selectedTemplate)}>
             <ListItemIcon>
-              <VisibilityIcon fontSize="small" />
+              <VisibilityIcon fontSize="small" color="info" />
             </ListItemIcon>
             Xem trước
           </MenuItem>
+          {selectedTemplate && isDraftTemplate(selectedTemplate) && (
+            <MenuItem 
+              onClick={() => {
+                // Clone template để tránh tham chiếu đến đối tượng ban đầu
+                const templateToPublish = JSON.parse(JSON.stringify(selectedTemplate));
+                handlePublish(templateToPublish);
+                // Buộc render lại danh sách
+                setTemplates([...templates]);
+                handleCloseMenu();
+              }}
+              sx={{
+                color: 'primary.main',
+                fontWeight: 500,
+                '&:hover': {
+                  bgcolor: 'primary.lighter',
+                }
+              }}
+            >
+              <ListItemIcon>
+                <PublishIcon fontSize="small" color="primary" />
+              </ListItemIcon>
+              Xuất bản mẫu
+            </MenuItem>
+          )}
+          {selectedTemplate && isActiveTemplate(selectedTemplate) && (
+            <MenuItem 
+              onClick={() => {
+                // Clone template để tránh tham chiếu đến đối tượng ban đầu
+                const templateToUnpublish = JSON.parse(JSON.stringify(selectedTemplate));
+                handleUnpublish(templateToUnpublish);
+                // Buộc render lại danh sách
+                setTemplates([...templates]);
+                handleCloseMenu();
+              }}
+              sx={{
+                color: 'warning.main',
+                fontWeight: 500,
+                '&:hover': {
+                  bgcolor: 'warning.lighter',
+                }
+              }}
+            >
+              <ListItemIcon>
+                <ArrowBackIcon fontSize="small" color="warning" />
+              </ListItemIcon>
+              Thu hồi mẫu
+            </MenuItem>
+          )}
           <MenuItem onClick={handleDuplicate}>
             <ListItemIcon>
-              <DuplicateIcon fontSize="small" />
+              <DuplicateIcon fontSize="small" color="action" />
             </ListItemIcon>
             Nhân bản
           </MenuItem>
           <Divider />
-          <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
+          <MenuItem 
+            onClick={handleDelete} 
+            sx={{ 
+              color: 'error.main',
+              '&:hover': {
+                bgcolor: 'error.lighter',
+              }
+            }}
+          >
             <ListItemIcon>
               <DeleteIcon fontSize="small" color="error" />
             </ListItemIcon>
-            Xóa
+            Xóa mẫu
           </MenuItem>
         </Menu>
         
@@ -880,15 +1185,86 @@ const FormTemplateCreate = () => {
                 variant="outlined"
                 onClick={() => setPreviewStepIndex(prev => Math.max(0, prev - 1))}
                 disabled={previewStepIndex === 0}
+                startIcon={<ArrowBackIcon />}
+                sx={{ 
+                  borderRadius: '8px', 
+                  px: 2,
+                  color: previewStepIndex === 0 ? 'text.disabled' : 'text.primary'
+                }}
               >
                 Bước trước
               </Button>
-              <Button
-                variant="outlined"
-                onClick={() => handleEdit(previewTemplate)}
-              >
-                Chỉnh sửa
-              </Button>
+              <Box>
+                {previewTemplate && isDraftTemplate(previewTemplate) && (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<PublishIcon />}
+                    onClick={() => {
+                      // Clone template để tránh tham chiếu đến đối tượng ban đầu
+                      const templateToPublish = JSON.parse(JSON.stringify(previewTemplate));
+                      handlePublish(templateToPublish);
+                      // Buộc render lại preview template
+                      setPreviewTemplate({...previewTemplate, status: 'active'});
+                    }}
+                    sx={{ 
+                      mr: 1,
+                      borderRadius: '8px',
+                      px: 2,
+                      boxShadow: '0 2px 10px rgba(103, 58, 183, 0.2)',
+                      '&:hover': {
+                        boxShadow: '0 4px 15px rgba(103, 58, 183, 0.3)'
+                      }
+                    }}
+                  >
+                    Xuất bản
+                  </Button>
+                )}
+                {previewTemplate && isActiveTemplate(previewTemplate) && (
+                  <Button
+                    variant="outlined"
+                    color="warning"
+                    startIcon={<ArrowBackIcon />}
+                    onClick={() => {
+                      // Clone template để tránh tham chiếu đến đối tượng ban đầu
+                      const templateToUnpublish = JSON.parse(JSON.stringify(previewTemplate));
+                      handleUnpublish(templateToUnpublish);
+                      // Buộc render lại preview template
+                      setPreviewTemplate({...previewTemplate, status: 'draft'});
+                    }}
+                    sx={{ 
+                      mr: 1,
+                      borderRadius: '8px',
+                      px: 2,
+                      borderColor: 'warning.main',
+                      fontWeight: 500,
+                      '&:hover': {
+                        backgroundColor: 'warning.lighter',
+                        borderColor: 'warning.dark',
+                      }
+                    }}
+                  >
+                    Thu hồi
+                  </Button>
+                )}
+                <Button
+                  variant="outlined"
+                  onClick={() => handleEdit(previewTemplate)}
+                  startIcon={<EditIcon />}
+                  sx={{ 
+                    borderRadius: '8px', 
+                    px: 2,
+                    color: 'info.main',
+                    borderColor: 'info.main',
+                    '&:hover': {
+                      backgroundColor: 'info.lighter',
+                      borderColor: 'info.dark',
+                    }
+                  }}
+                >
+                  Chỉnh sửa
+                </Button>
+              </Box>
               <Button 
                 variant="contained"
                 onClick={() => {
@@ -901,6 +1277,12 @@ const FormTemplateCreate = () => {
                   !previewTemplate?.formData || 
                   previewStepIndex >= Object.keys(previewTemplate.formData).length - 1
                 }
+                endIcon={<ArrowForwardIcon />}
+                sx={{ 
+                  borderRadius: '8px', 
+                  px: 2,
+                  opacity: (!previewTemplate?.formData || previewStepIndex >= Object.keys(previewTemplate.formData).length - 1) ? 0.7 : 1
+                }}
               >
                 Bước tiếp theo
               </Button>
@@ -923,18 +1305,107 @@ const FormTemplateCreate = () => {
             variant="outlined" 
             startIcon={<ArrowBackIcon />} 
             onClick={handleBack}
-            sx={{ mr: 1, borderRadius: 2 }}
+            sx={{ mr: 1, borderRadius: '8px', fontWeight: 500 }}
           >
             Quay lại
           </Button>
-          <Button 
-            variant="contained" 
-            startIcon={<SaveIcon />} 
-            onClick={handleSave}
-            sx={{ borderRadius: 2 }}
-          >
-            {isEditMode ? 'Cập nhật' : 'Lưu mẫu'}
-          </Button>
+          {isEditMode && selectedTemplate ? (
+            <>
+              {isDraftTemplate(selectedTemplate) ? (
+                <Button 
+                  variant="contained" 
+                  startIcon={<PublishIcon />} 
+                  onClick={() => {
+                    // Lưu và xuất bản
+                    handleSave(true);
+                  }}
+                  color="primary"
+                  sx={{ 
+                    mr: 1, 
+                    borderRadius: '8px', 
+                    boxShadow: '0 2px 10px rgba(103, 58, 183, 0.2)',
+                    '&:hover': {
+                      boxShadow: '0 4px 15px rgba(103, 58, 183, 0.3)'
+                    }
+                  }}
+                >
+                  Lưu & Xuất bản
+                </Button>
+              ) : isActiveTemplate(selectedTemplate) && (
+                <Button 
+                  variant="contained" 
+                  startIcon={<ArrowBackIcon />} 
+                  onClick={() => {
+                    // Lưu và thu hồi về bản nháp
+                    handleSave();
+                    const template = JSON.parse(JSON.stringify(selectedTemplate));
+                    template.status = 'draft';
+                    handleUnpublish(template);
+                  }}
+                  color="warning"
+                  sx={{ 
+                    mr: 1, 
+                    borderRadius: '8px',
+                    boxShadow: '0 2px 10px rgba(237, 108, 2, 0.2)',
+                    '&:hover': {
+                      boxShadow: '0 4px 15px rgba(237, 108, 2, 0.3)'
+                    }
+                  }}
+                >
+                  Lưu & Thu hồi
+                </Button>
+              )}
+              <Button 
+                variant="contained" 
+                startIcon={<SaveIcon />} 
+                onClick={() => handleSave()}
+                sx={{ 
+                  borderRadius: '8px',
+                  bgcolor: 'info.main',
+                  '&:hover': {
+                    bgcolor: 'info.dark',
+                  }
+                }}
+              >
+                Cập nhật
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button 
+                variant="contained" 
+                startIcon={<PublishIcon />} 
+                onClick={handleSaveAndPublish}
+                color="primary"
+                sx={{ 
+                  mr: 1, 
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 10px rgba(103, 58, 183, 0.2)',
+                  '&:hover': {
+                    boxShadow: '0 4px 15px rgba(103, 58, 183, 0.3)'
+                  }
+                }}
+              >
+                Xuất bản ngay
+              </Button>
+              <Button 
+                variant="outlined" 
+                startIcon={<SaveIcon />} 
+                onClick={() => handleSave()}
+                sx={{ 
+                  borderRadius: '8px',
+                  borderColor: 'info.main',
+                  color: 'info.main',
+                  '&:hover': {
+                    backgroundColor: 'info.lighter',
+                    borderColor: 'info.dark',
+                  }
+                }}
+              >
+                Lưu bản nháp
+              </Button>
+            </>
+          )}
         </Box>
       </Box>
       
